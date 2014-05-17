@@ -1,5 +1,5 @@
-function checkerImage = BinoChecks(imSizePixXY, checkSizePix, deadZonePix, whichEye, colors2use)
-% function checkerImage = BinoChecks(imSizePixXY, checkSizePix, deadZonePix, whichEye, colors2use)
+function checkerImage = MakeBinoCheckImage(imSizeXYpix, checkSizePix, deadZonePix, whichEye, colors2use)
+% function checkerImage = MakeBinoCheckImage(imSizePixXY, checkSizePix, deadZonePix, whichEye, colors2use)
 %
 % Create a checkerboard stimulus for display in a mirror stereoscope. The image is a
 % uint8 matrix, usually it will be the same size as the display. The actual colors have to
@@ -24,8 +24,8 @@ function checkerImage = BinoChecks(imSizePixXY, checkSizePix, deadZonePix, which
 %
 % BB 2014-05-12 wrote it
 
-xSize = imSizePixXY(1);
-ySize = imSizePixXY(2);
+xSize = imSizeXYpix(1);
+ySize = imSizeXYpix(2);
 xSizeMonoc = floor((xSize - deadZonePix)/2);            % Width of monocular image 
 monocImBlank = repmat(uint8(0), ySize, xSizeMonoc);     % Monocular image matrix with row, col indexing
 
