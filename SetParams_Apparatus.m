@@ -7,11 +7,25 @@ function A = SetParams_Apparatus(A)
 if ~exist('A', 'var')
     A = [];
 end
- 
-A.testRoom      = '1419';        % room in which experiment will be run
-A.viewDistCm    = 70;            % optical distance from eyes to screen in cm
-A.displaySizeCm = [50 30];       % size of display in cm [x y]
-A.lumCalibFile  = '';            % full name including path of luminance calibration file
-A.screenNumber  = 0;             % Screen number to use with PsychToolbox window
+
+computerName = getenv('ComputerName');
+switch computerName
+    case 'ALONSO-VEP'
+        A.testRoom      = '1419';        % room in which experiment will be run
+        A.viewDistCm    = 80;            % optical distance from eyes to screen in cm
+        A.displaySizeCm = [53.0 30.0];       % size of display in cm [x y]
+        A.lumCalibFile  = '';            % full name including path of luminance calibration file
+        A.screenNumber  = 2;             % Screen number to use with PsychToolbox window
+        fprintf('Unknown computer name %s. Using default values.\n', computerName);
+    otherwise
+        A.testRoom      = 'uknown';      % room in which experiment will be run
+        A.viewDistCm    = 70;            % optical distance from eyes to screen in cm
+        A.displaySizeCm = [50 30];       % size of display in cm [x y]
+        A.lumCalibFile  = '';            % full name including path of luminance calibration file
+        A.screenNumber  = 0;             % Screen number to use with PsychToolbox window
+        fprintf('Unknown computer name %s. Using default values.\n', computerName);
+end
+A.computerName = computerName;
+fprintf('Computer name = %s, room = %s.\n', computerName, A.testRoom);
 
 end % of function

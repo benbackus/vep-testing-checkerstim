@@ -8,7 +8,7 @@ if ~exist('E', 'var')
     E = [];
 end
  
-E.screenResXY          = [800 600];     % [x y] Screen resolution to use
+E.screenResXY          = [1920 1080];     % [x y] Screen resolution to use
 
 % Stimulus descriptors
 E.stim.checkSizeDeg    = 2;             % Size of edge of checks in deg visual angle
@@ -24,7 +24,7 @@ E.fixationLineWidthPx  = 2;             % Width of the lines of the fixation box
 
 % Trial descriptors
 E.trial.nStimPerTrial  = 10;            % Stimulus repeats per trial (between blinking rests)
-E.trial.ITIsec         = 2;             % Intertrial interval for blinking
+E.trial.ITIsec         = 5;             % Intertrial interval for blinking
 
 % Experiment descriptors
 % Example settings: Stimuli are 0.5 sec x 10 stimuli/trial = 5 sec for the stimulation portion of each trial. 

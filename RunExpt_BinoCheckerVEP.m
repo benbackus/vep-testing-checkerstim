@@ -81,7 +81,7 @@ end
 
 %% Run the trials
 nTrial = length(trialOrder);
-result = cell(1, iTrial);
+result = cell(1, nTrial);
 for iTrial = 1:nTrial
     needToPresent = true; % whether to present (again)
     result{iTrial} = {};
