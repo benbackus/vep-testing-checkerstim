@@ -48,17 +48,21 @@ PsychImaging('AddTask', 'FinalFormatting', 'DisplayColorCorrection',...
 PsychImaging('AddTask', 'General', 'UseFastOffscreenWindows');
 PsychImaging('AddTask', 'General', 'FloatingPoint32Bit');
 
-Screen('Preference', 'SkipSyncTests', 1); % FIXME debug only
+%Screen('Preference', 'SkipSyncTests', 1); % for debug only!
 H = struct();
+res = Screen('Resolution', 2);
+if ~all([res.width res.height] == E.screenResXY)
+    fprintf(['Current screen resolution is not the expected %ix%i! '...
+        'Press Ctrl-C to interrupt, or any key to continue'], ...
+        E.screenResXY(1), E.screenResXY(2))
+    pause()
+end
 H.screenWindow = PsychImaging('OpenWindow', A.screenNumber, [], [], [], [], [], [], [], [], [0 0 E.screenResXY]);
-%H.screenWindow = -1;
 
-% FIXME need real calibration data here
-H.lumChannelContrib = [.2 .7 .1]; % [R, G, B] contribution to total
-H.lumCalib = [0:10:250, 255]';
-H.lumCalib = [H.lumCalib (H.lumCalib ./ 255).^2 ];
+% Set up color calibration
+H.lumCalib = importdata('lumCalib 1419 2014-05-27.mat');
+H.lumChannelContrib = [0.185506 0.743230 0.071263];
 H.white = 255;
-
 table = LumToColor(H, ((0:1023)./1023.0)');
 table = table * 1/255; % HACK
 PsychColorCorrection('SetLookupTable', H.screenWindow, table);
@@ -66,11 +70,12 @@ PsychColorCorrection('SetLookupTable', H.screenWindow, table);
 Screen('BlendFunction', H.screenWindow, ...
     GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
+% Specify key to interrupt experiment
 KbName('UnifyKeyNames');
 H.escapeKey = KbName('ESCAPE');
 
 % Initialize Plexon & parallel port data connection
-H.usePlexonFlag = false;
+H.usePlexonFlag = true;
 if H.usePlexonFlag
     H.PLserver = PL_InitClient(0);
 
@@ -123,7 +128,7 @@ for iTrial = 1:nTrial
     if keyCode(H.escapeKey) || (exist('latestResult', 'var') && isscalar(latestResult))
         break;
     end
-    WaitSecs(E.trial.ITIsec);                      % Intertrial interval for blinking
+    WaitSecs(E.trial.ITIsec);    % Intertrial interval for blinking
 end
 
 %% Close display and exit gracefully
