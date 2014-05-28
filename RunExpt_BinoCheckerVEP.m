@@ -61,6 +61,7 @@ H.screenWindow = PsychImaging('OpenWindow', A.screenNumber, [], [], [], [], [], 
 
 % Set up color calibration
 H.lumCalib = importdata('lumCalib 1419 2014-05-27.mat');
+H.lumCalib(:,2) = H.lumCalib(:,2) ./ max(H.lumCalib(:,2));
 H.lumChannelContrib = [0.185506 0.743230 0.071263];
 H.white = 255;
 table = LumToColor(H, ((0:1023)./1023.0)');
@@ -83,6 +84,12 @@ if H.usePlexonFlag
     LPT_Stimulus_Trigger = 4;
     LPT_Stimulus_End= 1;
 end
+
+%% Build the image for the end-of-blink signal
+oneStim = BuildBinoCheckStim(A, E, 0);                % whichEye argument is 0 -> no checkerboards
+colorCodes255 = uint8(round(mean(oneStim.colorCodes, 2) * 255)); % Convert real values from 0-1 to 0-255. Colors are changed to grayscale.
+image2D = colorCodes255(oneStim.images(:,:,1));     % Convert image from color codes to gray values
+hTextureWarning = Screen('MakeTexture', H.screenWindow, image2D);
 
 %% Run the trials
 nTrial = length(trialOrder);
@@ -128,7 +135,15 @@ for iTrial = 1:nTrial
     if keyCode(H.escapeKey) || (exist('latestResult', 'var') && isscalar(latestResult))
         break;
     end
-    WaitSecs(E.trial.ITIsec);    % Intertrial interval for blinking
+    
+    % Wait and allow subject to blink between trials
+    WaitSecs(E.trial.ITIsec - E.trial.warnNoBlinkSec);    % Intertrial interval for blinking
+    % Give warning signal
+    Screen('DrawTexture', H.screenWindow, hTextureWarning);
+    DrawFixationMark(A, E, H, E.warnSignalColor);
+    Screen(H.screenWindow, 'Flip');
+    WaitSecs(E.trial.warnNoBlinkSec);
+    % Removal of warning signal is done by ShowStimulus
 end
 
 %% Close display and exit gracefully

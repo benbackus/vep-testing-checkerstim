@@ -15,7 +15,7 @@ E.stim.checkSizeDeg    = 2;             % Size of edge of checks in deg visual a
 E.stim.checkHz         = 10;            % Rate of flicker at onset
 E.stim.flickerDurSec   = 0.2;           % Duration of flickering portion of stimulus in sec
 E.stim.stimDurSec      = 0.5;           % Duration of single stimulus in sec
-E.stim.checkContrast   = 0.85;           % Constrast of checkerboards
+E.stim.checkContrast   = 0.80;           % Constrast of checkerboards
 E.stim.deadZoneDeg     = 2;             % Size of dead zone between the left and right images
 
 % Fixation mark descriptors
@@ -25,6 +25,8 @@ E.fixationLineWidthPx  = 2;             % Width of the lines of the fixation box
 % Trial descriptors
 E.trial.nStimPerTrial  = 10;            % Stimulus repeats per trial (between blinking rests)
 E.trial.ITIsec         = 5;             % Intertrial interval for blinking
+E.trial.warnNoBlinkSec = 0.5;           % Duration of end-of-rest signal prior to end of rest.
+E.warnSignalColor      = [0 255 0];     % 0-255 or [r g b]
 
 % Experiment descriptors
 % Example settings: Stimuli are 0.5 sec x 10 stimuli/trial = 5 sec for the stimulation portion of each trial. 

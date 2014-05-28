@@ -31,9 +31,9 @@ function oneStim = BuildBinoCheckStim(A, E, whichEye)
 %
 %   oneStim                     Structure containing a list of images, a list of color codes, and list of image numbers and display times 
 %     .images                   uint8 3D array of color numbers: nRow x nCol x nImage. 
-%     .images                   uint8 3D array of color numbers (values 1 to 255): nRow x nCol x nImage. 
 %     .colorCodes               256 x 1, entries are gray levels (0=black to 255=white) for the different color numbers (1 to 255);
 %                                  or 256 x 3, where each entry is the RGB for a different color number (0 to 255).                    
+%     .imageListTimes           nStim x 2 matrix of times (in sec) and image numbers. 
 %   
 % BB 2014-05-16
 
@@ -60,8 +60,8 @@ oneStim.images = cat(3, checkerImage1, checkerImage2, blankStim);
 % Set the color maps. For now we assume a calibrated RGB color map.
 colorDeadZone = [0 0 0];   % Black
 colorBackground = [0.5 0.5 0.5];  % Mid gray (not yet calibrated) ###
-color1 = colorBackground + colorBackground * E.stim.checkContrast * 0.5; 
-color2 = colorBackground - colorBackground * E.stim.checkContrast * 0.5; 
+color1 = colorBackground * (1 + E.stim.checkContrast); 
+color2 = colorBackground * (1 - E.stim.checkContrast); 
 oneStim.colorCodes = [...
     colorDeadZone   
     colorBackground 
@@ -69,7 +69,7 @@ oneStim.colorCodes = [...
     color2          ];
 
 % Set the list of images and times. First the flickering checkerboards, then the blank interval.
-imageDurSec = 1/E.stim.checkHz;
+imageDurSec = 0.5/E.stim.checkHz;      % Each image lasts half a cycle
 nFlicker = E.stim.flickerDurSec / imageDurSec;
 if nFlicker < 1
     error('Number of flickering stimuli is less than 1!');
