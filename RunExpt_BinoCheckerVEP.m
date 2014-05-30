@@ -35,11 +35,17 @@ E = SetParams_Expt_BinoChecks1;    % Parameters controlling the experiment
 % Set the trial order (1=OS, 2=OD, 3=OU) using random permutations of 1, 2, and 3 (L, R, both)
 trialOrder = [];
 for iRep = 1:E.expt.nTrialOS       % Same as number of trials for R, both
-    trialOrder = [trialOrder randperm(3)];
+    trialOrder = [trialOrder, randperm(3)];
 end
 E.expt.trialOrder = trialOrder;    % Set this parameter here
 
-% Open data file for responses to task  ###
+% Open data file for responses to task
+presentationStrs = cellfun(...
+    @(x){sprintf('Presentation %i',x)}, ...
+    num2cell(1:E.trial.nStimPerTrial));
+dataColumns = [{'GoTime', 'Success'} presentationStrs];
+trialName = input('Identifier for this set of trials: ', 's');
+datafile = DataFile(DataFile.defaultPath(trialName), dataColumns);
 
 %% Prepare the display
 PsychImaging('PrepareConfiguration');
@@ -50,7 +56,7 @@ PsychImaging('AddTask', 'General', 'FloatingPoint32Bit');
 
 %Screen('Preference', 'SkipSyncTests', 1); % for debug only!
 H = struct();
-res = Screen('Resolution', 2);
+res = Screen('Resolution', A.screenNumber);
 if ~all([res.width res.height] == E.screenResXY)
     fprintf(['Current screen resolution is not the expected %ix%i! '...
         'Press Ctrl-C to interrupt, or any key to continue'], ...
@@ -104,7 +110,7 @@ for iTrial = 1:nTrial
             go_ts = []; GetEventsPlexon(H.PLserver);
             fprintf('%s', 'Waiting for go...');
             while isempty(go_ts)
-                [~,~,go_ts,~]=GetEventsPlexon(H.PLserver);   % ### Save this timestamp to output file for later correlation with VEP data
+                [~,~,go_ts,~]=GetEventsPlexon(H.PLserver);
                 pause(1e-2); % prevent 100% CPU usage
             end
             fprintf('%s\n', 'Going now!');
@@ -116,7 +122,7 @@ for iTrial = 1:nTrial
         if H.usePlexonFlag
             LPTTrigger(LPT_Stimulus_End);
 
-            % Check for blinks
+            % Check for blinks ("Stop" signal sent from Plexon)
             [~,~,~,stop_ts]=GetEventsPlexon(H.PLserver);
             needToPresent = ~isempty(stop_ts);
             if needToPresent
@@ -125,6 +131,14 @@ for iTrial = 1:nTrial
         else
             needToPresent = false;
         end
+        
+        % Write to data file
+        if latestResult == -1 || needToPresent
+            stimTimes = zeros(1, E.trial.nStimPerTrial);
+        else
+            stimTimes = latestResult;
+        end
+        dataFile.append([go_ts, ~needToPresent, stimTimes]);
         
         [~, ~, keyCode] = KbCheck;
         if keyCode(H.escapeKey) || ~isscalar(latestResult)  % latestResult is -1 upon failure, or a vector upon success
