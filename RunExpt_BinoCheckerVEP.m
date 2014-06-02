@@ -39,7 +39,14 @@ for iRep = 1:E.expt.nTrialOS       % Same as number of trials for R, both
 end
 E.expt.trialOrder = trialOrder;    % Set this parameter here
 
-% Open data file for responses to task  ###
+% Open data file for record of stimuli presented and responses to task
+sessionName = input('Session name (Subjectcode+experimentInitial+MMDD): ', 's');
+dataDir = 'C:\Users\labalonso\Desktop\Backus\vep-testing-checkerstim\Data\';
+dataFileID = fopen([dataDir sessionName '.txt'], 'a'); 
+fprintf(dataFileID, 'Session Name = %s\n', sessionName);
+% fprintf(dataFileID, 'iTrial, eyeCond, nBlink, trialDuration, serialTime\n');
+fprintf(dataFileID, 'iTrial, eyeCond, trialDuration, serialTime\n');
+
 
 %% Prepare the display
 PsychImaging('PrepareConfiguration');
@@ -94,6 +101,14 @@ hTextureWarning = Screen('MakeTexture', H.screenWindow, image2D);
 %% Run the trials
 nTrial = length(trialOrder);
 result = cell(1, nTrial);
+
+% Wait and allow subject to blink between trials
+WaitSecs(E.trial.ITIsec - E.trial.warnNoBlinkSec);    % Intertrial interval for blinking
+Screen('DrawTexture', H.screenWindow, hTextureWarning);
+DrawFixationMark(A, E, H, E.warnSignalColor);
+Screen(H.screenWindow, 'Flip');
+WaitSecs(E.trial.warnNoBlinkSec);
+
 for iTrial = 1:nTrial
     needToPresent = true; % whether to present (again)
     result{iTrial} = {};
@@ -136,7 +151,12 @@ for iTrial = 1:nTrial
         break;
     end
     
-    % Wait and allow subject to blink between trials
+    % Write data from trial
+%     trialDuration = latestResult;
+%     nBlink = sum(result{iTrial}==-1);  % ### Add this later, figure out
+    fprintf(dataFileID, '%d, %d, %f\n', iTrial, trialOrder(iTrial), now);
+    
+   % Wait and allow subject to blink between trials
     WaitSecs(E.trial.ITIsec - E.trial.warnNoBlinkSec);    % Intertrial interval for blinking
     % Give warning signal
     Screen('DrawTexture', H.screenWindow, hTextureWarning);
@@ -144,10 +164,12 @@ for iTrial = 1:nTrial
     Screen(H.screenWindow, 'Flip');
     WaitSecs(E.trial.warnNoBlinkSec);
     % Removal of warning signal is done by ShowStimulus
+    
 end
 
 %% Close display and exit gracefully
 Screen('CloseAll');
 
 % Save the data file ###
+fclose(dataFileID);
 
