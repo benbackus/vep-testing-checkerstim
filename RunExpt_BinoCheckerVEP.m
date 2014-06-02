@@ -46,7 +46,7 @@ presentationStrs = cellfun(...
     @(stimNum){sprintf('Presentation %i',stimNum)}, ...
     num2cell(1:E.trial.nStimPerTrial));
 dataColumns = [{'iTrial', 'plexonGoTime', 'Success', 'eyeCond'} presentationStrs];  % Catenate to prepend more items to the list 
-sessionName = input('Session name (Subjectcode+experimentInitial+MMDD): ', 's');
+sessionName = input('Session name (Subjectcode+experimentInitial): ', 's');
 datafile = DataFile(DataFile.defaultPath(sessionName), dataColumns);
 
 %% Prepare the display
@@ -134,24 +134,25 @@ for iTrial = 1:nTrial
 
             % Check for blinks ("Stop" signal sent from Plexon)
             [~,~,~,stop_ts]=GetEventsPlexon(H.PLserver);
-            needToPresent = ~isempty(stop_ts);
+            needToPresent = ~(isempty(stop_ts) && ~isscalar(latestResult));  % latestResult is -1 upon failure, or a vector upon success
             if needToPresent
-                fprintf('%s\n', 'Blink detected!');
+                fprintf('%s\n', 'Blink or interrupt detected!');
             end
         else
             needToPresent = false;
         end
         
         % Write to data file
-        if latestResult == -1 || needToPresent
+        if needToPresent
             stimTimes = zeros(1, E.trial.nStimPerTrial);
         else
-            stimTimes = latestResult;
+            stimTimes = [latestResult.totalTime];
         end
-        dataFile.append([iTrial, go_ts, ~needToPresent, E.expt.trialOrder(iTrial), stimTimes]);
+        datafile.append([iTrial, go_ts, ~needToPresent, E.expt.trialOrder(iTrial), stimTimes]);
         
+        % Abort if holding down Esc key
         [~, ~, keyCode] = KbCheck;
-        if keyCode(H.escapeKey) || ~isscalar(latestResult)  % latestResult is -1 upon failure, or a vector upon success
+        if keyCode(H.escapeKey)
             needToPresent = false;
         end
     end
@@ -173,4 +174,5 @@ end
 
 %% Close display and exit gracefully
 Screen('CloseAll');
-
+% Close data file
+delete(datafile);
