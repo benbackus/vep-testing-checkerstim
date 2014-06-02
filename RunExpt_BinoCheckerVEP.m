@@ -35,18 +35,19 @@ E = SetParams_Expt_BinoChecks1;    % Parameters controlling the experiment
 % Set the trial order (1=OS, 2=OD, 3=OU) using random permutations of 1, 2, and 3 (L, R, both)
 trialOrder = [];
 for iRep = 1:E.expt.nTrialOS       % Same as number of trials for R, both
-    trialOrder = [trialOrder randperm(3)];
+    trialOrder = [trialOrder, randperm(3)];
 end
 E.expt.trialOrder = trialOrder;    % Set this parameter here
 
 % Open data file for record of stimuli presented and responses to task
+% Create a cell array (vector) of strings that will be written as the first line of the data file,
+%   of the form {'Presentation 1', 'Presentation 2', ...}
+presentationStrs = cellfun(...
+    @(stimNum){sprintf('Presentation %i',stimNum)}, ...
+    num2cell(1:E.trial.nStimPerTrial));
+dataColumns = [{'iTrial', 'plexonGoTime', 'Success', 'eyeCond'} presentationStrs];  % Catenate to prepend more items to the list 
 sessionName = input('Session name (Subjectcode+experimentInitial+MMDD): ', 's');
-dataDir = 'C:\Users\labalonso\Desktop\Backus\vep-testing-checkerstim\Data\';
-dataFileID = fopen([dataDir sessionName '.txt'], 'a'); 
-fprintf(dataFileID, 'Session Name = %s\n', sessionName);
-% fprintf(dataFileID, 'iTrial, eyeCond, nBlink, trialDuration, serialTime\n');
-fprintf(dataFileID, 'iTrial, eyeCond, trialDuration, serialTime\n');
-
+datafile = DataFile(DataFile.defaultPath(sessionName), dataColumns);
 
 %% Prepare the display
 PsychImaging('PrepareConfiguration');
@@ -57,7 +58,7 @@ PsychImaging('AddTask', 'General', 'FloatingPoint32Bit');
 
 %Screen('Preference', 'SkipSyncTests', 1); % for debug only!
 H = struct();
-res = Screen('Resolution', 2);
+res = Screen('Resolution', A.screenNumber);
 if ~all([res.width res.height] == E.screenResXY)
     fprintf(['Current screen resolution is not the expected %ix%i! '...
         'Press Ctrl-C to interrupt, or any key to continue'], ...
@@ -119,19 +120,19 @@ for iTrial = 1:nTrial
             go_ts = []; GetEventsPlexon(H.PLserver);
             fprintf('%s', 'Waiting for go...');
             while isempty(go_ts)
-                [~,~,go_ts,~]=GetEventsPlexon(H.PLserver);   % ### Save this timestamp to output file for later correlation with VEP data
+                [~,~,go_ts,~]=GetEventsPlexon(H.PLserver);
                 pause(1e-2); % prevent 100% CPU usage
             end
             fprintf('%s\n', 'Going now!');
         end
         
-        latestResult = DoBinoCheckerTrial(A, E, H, trialOrder(iTrial));  % Do a trial of type 1, 2, or 3 (LE, RE, both) depending on trial type
+        latestResult = DoBinoCheckerTrial(A, E, H, E.expt.trialOrder(iTrial));  % Do a trial of type 1, 2, or 3 (LE, RE, both) depending on trial type
         result{iTrial} = { result{iTrial}{:} latestResult };  % List of any blink trials (-1 values) followed by vector of stimulus times upon success 
         
         if H.usePlexonFlag
             LPTTrigger(LPT_Stimulus_End);
 
-            % Check for blinks
+            % Check for blinks ("Stop" signal sent from Plexon)
             [~,~,~,stop_ts]=GetEventsPlexon(H.PLserver);
             needToPresent = ~isempty(stop_ts);
             if needToPresent
@@ -140,6 +141,14 @@ for iTrial = 1:nTrial
         else
             needToPresent = false;
         end
+        
+        % Write to data file
+        if latestResult == -1 || needToPresent
+            stimTimes = zeros(1, E.trial.nStimPerTrial);
+        else
+            stimTimes = latestResult;
+        end
+        dataFile.append([iTrial, go_ts, ~needToPresent, E.expt.trialOrder(iTrial), stimTimes]);
         
         [~, ~, keyCode] = KbCheck;
         if keyCode(H.escapeKey) || ~isscalar(latestResult)  % latestResult is -1 upon failure, or a vector upon success
@@ -151,12 +160,7 @@ for iTrial = 1:nTrial
         break;
     end
     
-    % Write data from trial
-%     trialDuration = latestResult;
-%     nBlink = sum(result{iTrial}==-1);  % ### Add this later, figure out
-    fprintf(dataFileID, '%d, %d, %f\n', iTrial, trialOrder(iTrial), now);
-    
-   % Wait and allow subject to blink between trials
+    % Wait and allow subject to blink between trials
     WaitSecs(E.trial.ITIsec - E.trial.warnNoBlinkSec);    % Intertrial interval for blinking
     % Give warning signal
     Screen('DrawTexture', H.screenWindow, hTextureWarning);
@@ -169,7 +173,4 @@ end
 
 %% Close display and exit gracefully
 Screen('CloseAll');
-
-% Save the data file ###
-fclose(dataFileID);
 
