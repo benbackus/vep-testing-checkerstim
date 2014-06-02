@@ -68,14 +68,16 @@ classdef DataFile < handle
             % Append commas after all but the last element in the line, and
             % then a newline afterwards
             if length(newData) > 1
-                fprintf(df.fileHandle, '%i,', newData(1:end-1));
+                fprintf(df.fileHandle, '%f,', newData(1:end-1));
             end
-            fprintf(df.fileHandle, '%i\n', newData(end));
+            fprintf(df.fileHandle, '%f\n', newData(end));
         end
         
         % Destructor: close the file
+        % (caution: any exceptions here will silently terminate the
+        % function!)
         function delete(df) % for deleting this handle, not the file!
-            if df.isvalid && strcmpi(get(df.fileHandle, 'status'), 'open')
+            if ftell(df.fileHandle) >= 0 % if file is still open
                 fclose(df.fileHandle);
             end
         end
