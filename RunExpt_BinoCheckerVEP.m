@@ -121,6 +121,13 @@ for iTrial = 1:nTrial
             fprintf('%s', 'Waiting for go...');
             while isempty(go_ts)
                 [~,~,go_ts,~]=GetEventsPlexon(H.PLserver);
+                
+                % Allow override by experimenter (usually to exit)
+                [~, ~, keyCode] = KbCheck;
+                if keyCode(H.escapeKey)
+                    break;
+                end
+                
                 pause(1e-2); % prevent 100% CPU usage
             end
             fprintf('%s\n', 'Going now!');
