@@ -25,7 +25,8 @@ E.fixationLineWidthPx  = 2;             % Width of the lines of the fixation box
 % Trial descriptors
 E.trial.nStimPerTrial  = 10;            % Stimulus repeats per trial (between blinking rests)
 E.trial.ITIsec         = 5;             % Intertrial interval for blinking
-E.trial.warnNoBlinkSec = 0.5;           % Duration of end-of-rest signal prior to end of rest.
+E.trial.warnNoBlinkSec = 1.0;           % Duration of end-of-rest signal prior to end of rest.
+E.trial.blankStartSec  = 0.3;           % Duration of blank time at beginning of a trial before stimuli
 E.warnSignalColor      = [0 255 0];     % 0-255 or [r g b]
 
 % Experiment descriptors

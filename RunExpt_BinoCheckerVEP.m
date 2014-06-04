@@ -100,86 +100,117 @@ image2D = colorCodes255(oneStim.images(:,:,1));     % Convert image from color c
 hTextureWarning = Screen('MakeTexture', H.screenWindow, image2D);
 
 %% Run the trials
-nTrial = length(trialOrder);
-result = cell(1, nTrial);
-
-% Wait and allow subject to blink between trials
-WaitSecs(E.trial.ITIsec - E.trial.warnNoBlinkSec);    % Intertrial interval for blinking
-Screen('DrawTexture', H.screenWindow, hTextureWarning);
-DrawFixationMark(A, E, H, E.warnSignalColor);
-Screen(H.screenWindow, 'Flip');
-WaitSecs(E.trial.warnNoBlinkSec);
-
-for iTrial = 1:nTrial
-    needToPresent = true; % whether to present (again)
-    result{iTrial} = {};
-    while needToPresent
-        
-        if H.usePlexonFlag
-            LPTTrigger(LPT_Stimulus_Trigger);
-            go_ts = []; GetEventsPlexon(H.PLserver);
-            fprintf('%s', 'Waiting for go...');
-            while isempty(go_ts)
-                [~,~,go_ts,~]=GetEventsPlexon(H.PLserver);
-                
-                % Allow override by experimenter (usually to exit)
-                [~, ~, keyCode] = KbCheck;
-                if keyCode(H.escapeKey)
-                    break;
-                end
-                
-                pause(1e-2); % prevent 100% CPU usage
-            end
-            fprintf('%s\n', 'Going now!');
-        end
-        
-        latestResult = DoBinoCheckerTrial(A, E, H, E.expt.trialOrder(iTrial));  % Do a trial of type 1, 2, or 3 (LE, RE, both) depending on trial type
-        result{iTrial} = { result{iTrial}{:} latestResult };  % List of any blink trials (-1 values) followed by vector of stimulus times upon success 
-        
-        if H.usePlexonFlag
-            LPTTrigger(LPT_Stimulus_End);
-
-            % Check for blinks ("Stop" signal sent from Plexon)
-            [~,~,~,stop_ts]=GetEventsPlexon(H.PLserver);
-            needToPresent = ~(isempty(stop_ts) && ~isscalar(latestResult));  % latestResult is -1 upon failure, or a vector upon success
-            if needToPresent
-                fprintf('%s\n', 'Blink or interrupt detected!');
-            end
-        else
-            needToPresent = false;
-        end
-        
-        % Write to data file
-        if needToPresent
-            stimTimes = zeros(1, E.trial.nStimPerTrial);
-        else
-            stimTimes = [latestResult.totalTime];
-        end
-        datafile.append([iTrial, go_ts, ~needToPresent, E.expt.trialOrder(iTrial), stimTimes]);
-        
-        % Abort if holding down Esc key
-        [~, ~, keyCode] = KbCheck;
-        if keyCode(H.escapeKey)
-            needToPresent = false;
-        end
-    end
-    [~, ~, keyCode] = KbCheck;
-    if keyCode(H.escapeKey) || (exist('latestResult', 'var') && isscalar(latestResult))
-        break;
-    end
-    
-    % Wait and allow subject to blink between trials
-    WaitSecs(E.trial.ITIsec - E.trial.warnNoBlinkSec);    % Intertrial interval for blinking
-    % Give warning signal
+try
+    % Allow experimenter to get the subject ready while subject views blank
+    % screen
     Screen('DrawTexture', H.screenWindow, hTextureWarning);
-    DrawFixationMark(A, E, H, E.warnSignalColor);
+    DrawFixationMark(A, E, H, 255.0);
     Screen(H.screenWindow, 'Flip');
-    WaitSecs(E.trial.warnNoBlinkSec);
-    % Removal of warning signal is done by ShowStimulus
+    fprintf('Press any key when subject is ready...');
+    pause();
     
+    nTrial = length(trialOrder);
+    result = cell(1, nTrial);
+    
+    for iTrial = 1:nTrial
+        needToPresent = true; % whether to present (again)
+        result{iTrial} = {};
+        while needToPresent
+            fprintf('Trial %i...', iTrial);
+            
+            % Waiting period to allow subject to blink
+            startTime = GetSecs();
+            endTime = startTime + E.trial.ITIsec;
+            warningTriggered = false;
+            % Draw regular fixation screen at start of intertrial interval
+            Screen('DrawTexture', H.screenWindow, hTextureWarning);
+            DrawFixationMark(A, E, H, 255.0);
+            Screen(H.screenWindow, 'Flip');
+            while GetSecs() < endTime
+                % If close to end time, show warning
+                if (GetSecs() > (endTime - E.trial.warnNoBlinkSec)) && ~warningTriggered
+                    if H.usePlexonFlag
+                        LPTTrigger(LPT_Stimulus_Trigger);
+                    end
+                    Screen('DrawTexture', H.screenWindow, hTextureWarning);
+                    DrawFixationMark(A, E, H, E.warnSignalColor);
+                    Screen(H.screenWindow, 'Flip');
+                    warningTriggered = true;
+                end
+                WaitSecs(min(0.1, 0.99*(endTime - GetSecs())));
+            end
+            
+            if H.usePlexonFlag
+                go_ts = []; GetEventsPlexon(H.PLserver);
+                fprintf('Waiting for go...');
+                while isempty(go_ts)
+                    [~,~,go_ts,~]=GetEventsPlexon(H.PLserver);
+                    
+                    % Allow override by experimenter (usually to exit)
+                    [~, ~, keyCode] = KbCheck;
+                    if keyCode(H.escapeKey)
+                        break;
+                    end
+
+                    pause(1e-2); % prevent 100% CPU usage
+                end
+                fprintf('Going now!');
+            end
+            fprintf('\n');
+
+            % After ensuring subject's eyes are open, show fixation screen
+            % briefly just prior to first stimulus of trial.
+            Screen('DrawTexture', H.screenWindow, hTextureWarning);
+            DrawFixationMark(A, E, H, 255.0);
+            Screen(H.screenWindow, 'Flip');
+            WaitSecs(E.trial.blankStartSec);
+
+            latestResult = DoBinoCheckerTrial(A, E, H, E.expt.trialOrder(iTrial));  % Do a trial of type 1, 2, or 3 (LE, RE, both) depending on trial type
+            result{iTrial} = { result{iTrial}{:} latestResult };  % List of any blink trials (-1 values) followed by vector of stimulus times upon success 
+
+            if H.usePlexonFlag
+                LPTTrigger(LPT_Stimulus_End);
+
+                % Check for blinks ("Stop" signal sent from Plexon)
+                [~,~,~,stop_ts]=GetEventsPlexon(H.PLserver);
+                needToPresent = ~(isempty(stop_ts) && isstruct(latestResult));  % latestResult is -1 upon failure, or a structure upon success
+                if needToPresent
+                    fprintf('%s\n', 'Blink or interrupt detected!');
+                end
+            else
+                needToPresent = false;
+            end
+
+            % Write to data file
+            if needToPresent
+                stimTimes = zeros(1, E.trial.nStimPerTrial);
+            else
+                stimTimes = [latestResult.totalTime];
+            end
+            if ~H.usePlexonFlag
+                go_ts = -1;
+            end
+            datafile.append([iTrial, go_ts, ~needToPresent, E.expt.trialOrder(iTrial), stimTimes]);
+
+            % Abort if holding down Esc key
+            [~, ~, keyCode] = KbCheck;
+            if keyCode(H.escapeKey)
+                needToPresent = false;
+            end
+        end
+        [~, ~, keyCode] = KbCheck;
+        if keyCode(H.escapeKey) || (exist('latestResult', 'var') && isscalar(latestResult))
+            break;
+        end
+    end
+catch caughtException
 end
 
 %% Close display and exit gracefully
 Screen('CloseAll');
 % Close data file
 delete(datafile);
+
+if exist('caughtException', 'var')
+    rethrow(caughtException);
+end
