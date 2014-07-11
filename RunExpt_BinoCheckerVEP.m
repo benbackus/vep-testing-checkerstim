@@ -29,7 +29,7 @@
 rng('shuffle');
 
 A = SetParams_Apparatus;           % Parameters controlling the stimuli in the experiment
-E = SetParams_Expt_BinoChecks1;    % Parameters controlling the experiment
+E = SetParams_Expt_BinoChecks2;    % Parameters controlling the experiment
 % L = LowLevelParams;              % Parameters and constants for low-level communcation between parts
 
 % Set the trial order (1=OS, 2=OD, 3=OU) using random permutations of 1, 2, and 3 (L, R, both)
@@ -42,10 +42,13 @@ E.expt.trialOrder = trialOrder;    % Set this parameter here
 % Open data file for record of stimuli presented and responses to task
 % Create a cell array (vector) of strings that will be written as the first line of the data file,
 %   of the form {'Presentation 1', 'Presentation 2', ...}
-presentationStrs = cellfun(...
-    @(stimNum){sprintf('Presentation %i',stimNum)}, ...
-    num2cell(1:E.trial.nStimPerTrial));
-dataColumns = [{'iTrial', 'plexonGoTime', 'Success', 'eyeCond'} presentationStrs];  % Catenate to prepend more items to the list 
+presentationStrs1 = cellfun(...
+    @(stimNum){sprintf('Stim %i dur',stimNum)}, num2cell(1:E.trial.nStimPerTrial));
+presentationStrs2 = cellfun(...
+    @(stimNum){sprintf('Stim %i start',stimNum)}, num2cell(1:E.trial.nStimPerTrial));
+presentationStrs3 = cellfun(...
+    @(stimNum){sprintf('Stim %i end',stimNum)}, num2cell(1:E.trial.nStimPerTrial));
+dataColumns = [{'iTrial', 'plexonGoTime', 'Success', 'eyeCond', 'trialLocalGoTime'} presentationStrs1 presentationStrs2 presentationStrs3 ];  % Catenate to prepend more items to the list 
 sessionName = input('Session name (Subjectcode+experimentInitial): ', 's');
 datafile = DataFile(DataFile.defaultPath(sessionName), dataColumns);
 
@@ -99,6 +102,14 @@ colorCodes255 = uint8(round(mean(oneStim.colorCodes, 2) * 255)); % Convert real 
 image2D = colorCodes255(oneStim.images(:,:,1));     % Convert image from color codes to gray values
 hTextureWarning = Screen('MakeTexture', H.screenWindow, image2D);
 
+% Create a warning tone during blinking period (not currently used)
+% pitch = 440;
+% rate = 8192;
+% duration = 0.2;
+% soundwave = sin(pitch*(0:(2*pi/rate):(2*pi*duration)))';
+% warnTonePlayer = audioplayer(soundwave, rate);
+% warnPeriod = 1.0;
+
 %% Run the trials
 try
     % Allow experimenter to get the subject ready while subject views blank
@@ -137,6 +148,8 @@ try
                     Screen(H.screenWindow, 'Flip');
                     warningTriggered = true;
                 end
+%                 play(warnTonePlayer);
+%                 WaitSecs(min(warnPeriod, 0.99*(endTime - GetSecs())));
                 WaitSecs(min(0.1, 0.99*(endTime - GetSecs())));
             end
             
@@ -152,8 +165,9 @@ try
                         break;
                     end
 
-                    pause(1e-2); % prevent 100% CPU usage
+                    pause(1e-4); % prevent 100% CPU usage
                 end
+                localGoTime = GetSecs();
                 fprintf('Going now!');
             end
             fprintf('\n');
@@ -184,13 +198,17 @@ try
             % Write to data file
             if needToPresent
                 stimTimes = zeros(1, E.trial.nStimPerTrial);
+                startTimes = zeros(1, E.trial.nStimPerTrial);
+                endTimes = zeros(1, E.trial.nStimPerTrial);
             else
-                stimTimes = [latestResult.totalTime];
+                stimTimes  = [latestResult.totalTime];   % This creates a vector from latestResult{:}.totalTime
+                startTimes = [latestResult.startTime];
+                endTimes   = [latestResult.endTime];
             end
             if ~H.usePlexonFlag
                 go_ts = -1;
             end
-            datafile.append([iTrial, go_ts, ~needToPresent, E.expt.trialOrder(iTrial), stimTimes]);
+            datafile.append([iTrial, go_ts, ~needToPresent, E.expt.trialOrder(iTrial), localGoTime, stimTimes, startTimes, endTimes]);
 
             % Abort if holding down Esc key
             [~, ~, keyCode] = KbCheck;

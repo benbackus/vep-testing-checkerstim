@@ -20,7 +20,7 @@ function report = ShowStimulus(A, E, H, oneStim)
 % 
 % Output:
 %   
-%   report                 Not currently used
+%   report                 Used to return trial timing
 %
 % As time passes, change the stimulus as appropriate at the right time. Note that in this first
 % version, we put the images into textures every time they're used. Much more efficient would be
@@ -32,6 +32,7 @@ function report = ShowStimulus(A, E, H, oneStim)
 
 % Load all images into the graphics card. 
 % NOTE: currently we assume images are grayscale images (or convert them) 
+report.startTime = GetSecs();
 nImage = size(oneStim.images,3);
 colorCodes255 = uint8(round(mean(oneStim.colorCodes, 2) * 255)); % Convert real values from 0-1 to 0-255. Colors are changed to grayscale.
 %colorCodesReal = mean(oneStim.colorCodes, 2);
@@ -66,10 +67,12 @@ for listEntry = 1:size(oneStim.imageListTimes, 1)        % Show the images in th
     end
 end
 
-report.totalTime = totalTime;
 
 for iImage = 1:nImage
     Screen('Close', hTexture(iImage));
 end
+
+report.totalTime = totalTime;
+report.endTime = GetSecs();
 
 end

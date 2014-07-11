@@ -12,7 +12,7 @@ computerName = getenv('ComputerName');
 switch computerName
     case 'ALONSO-VEP'
         A.testRoom      = '1419';        % room in which experiment will be run
-        A.viewDistCm    = 80;            % optical distance from eyes to screen in cm
+        A.viewDistCm    = 100;            % optical distance from eyes to screen in cm
         A.displaySizeCm = [53.0 30.0];       % size of display in cm [x y]
         A.lumCalibFile  = '';            % full name including path of luminance calibration file
         A.screenNumber  = 2;             % Screen number to use with PsychToolbox window
