@@ -1,5 +1,5 @@
-function oneStim = BuildBinoCheckStim(A, E, whichEye)
-% function oneStim = BuildBinoCheckStim(A, E, whichEye)
+function oneStim = BuildBinoCheckStim(A, E, trialType)
+% function oneStim = BuildBinoCheckStim(A, E, trialType)
 %
 % Create binocular stimulus to show on one trial of VEP experiment,
 % suitable for passing to the function ShowStimulus.
@@ -25,7 +25,8 @@ function oneStim = BuildBinoCheckStim(A, E, whichEye)
 %     .stim.checkContrast        Scalar, 0 to 1
 %     .stim.deadZoneDeg          Size of dead zone between the left and right images
 %
-%   whichEye                     1, 2, or 3 for LE, RE, or Both (can also be 0 for neither)
+%   trialType                    1, 2, or 3 for LE, RE, or Both (can also be 0 for neither)
+%                                   When 4,5,6 it's L,R,both for 2nd check size, etc.
 %   
 % Output
 %
@@ -37,12 +38,19 @@ function oneStim = BuildBinoCheckStim(A, E, whichEye)
 %   
 % BB 2014-05-16
 
-imSizeXYPix = E.screenResXY;    % Use full screen size for image size
+imSizeXYPix = E.screenResXY;              % Use full screen size for image size
+if trialType == 0          % Check if it's supposed to be a blank screen
+    whichEye = 0;
+    indxCheckSize = 1;     % Not actually used to build the stimulus in this case
+else
+    whichEye = 1+mod(trialType-1,3);          % 1, 2 or 3
+    indxCheckSize = ceil(trialType/3 - eps);  % 1, 2, ..., length(E.stim.checkSizeDeg)
+end
 
 % Size of checks is created assuming that pixels are square, i.e. it's OK to do this using xSize alone
 pixPerCm  = imSizeXYPix(1) / A.displaySizeCm(1);
 pixPerDeg = (pixPerCm * A.viewDistCm) / 180 * pi;  % pix per radian, converted to pix per deg
-checkSizePix = round(E.stim.checkSizeDeg * pixPerDeg);
+checkSizePix = round(E.stim.checkSizeDeg(indxCheckSize) * pixPerDeg);
 deadZonePix = round(E.stim.deadZoneDeg * pixPerDeg);
 if mod(deadZonePix,2)     % Make it even so that final image won't be 1 pixel shy
     deadZonePix = deadZonePix + 1;

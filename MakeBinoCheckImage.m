@@ -29,8 +29,9 @@ ySize = imSizeXYpix(2);
 xSizeMonoc = floor((xSize - deadZonePix)/2);            % Width of monocular image 
 monocImBlank = repmat(uint8(0), ySize, xSizeMonoc);     % Monocular image matrix with row, col indexing
 
-% Create monocular image with x,y indexing
-[X,Y] = meshgrid(1:xSizeMonoc, 1:ySize);
+% Create monocular image with x,y indexing. Subtracting xSizeMonoc/2 centers the checkerboard vertex in the middle of the
+% screen. Adding checkSizePix/2 then centers the checks on the screen.
+[X,Y] = meshgrid((1:xSizeMonoc)-xSizeMonoc/2+checkSizePix/2, (1:ySize)-ySize/2+checkSizePix/2);
 checks = mod(floor((X-1)/checkSizePix)+floor((Y-1)/checkSizePix), 2);  % 0 or 1 depending whether pixel is foreground check        
 
 % In most cases the two monocular images will be the same, so compute it here  

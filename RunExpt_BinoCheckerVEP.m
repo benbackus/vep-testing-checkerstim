@@ -23,19 +23,25 @@
 %
 % BB 5/14/2014
 
+%% Specify whether to use debug mode (no Plexon calls) or not
+H = struct();
+H.usePlexonFlag = true;   % Set this to true for eye position monitoring, false for debugging
+
 %% Get experimental variables, set up necessary parameters, open data files for the experiment
 
 % Seed the random number generator based on current time
 rng('shuffle');
 
 A = SetParams_Apparatus;           % Parameters controlling the stimuli in the experiment
-E = SetParams_Expt_BinoChecks2;    % Parameters controlling the experiment
+E = SetParams_Expt_BinoChecks3;    % Parameters controlling the experiment
 % L = LowLevelParams;              % Parameters and constants for low-level communcation between parts
 
 % Set the trial order (1=OS, 2=OD, 3=OU) using random permutations of 1, 2, and 3 (L, R, both)
+% Note that 1,2,3 are for check size 1; 4,5,6 are for check size 2; and 7,8,9 are for check size 3, etc.
 trialOrder = [];
-for iRep = 1:E.expt.nTrialOS       % Same as number of trials for R, both
-    trialOrder = [trialOrder, randperm(3)];
+nCond = 3 * length(E.stim.checkSizeDeg);  % Number of conditions equals 3 eye conds (OD,OS,OU) x n check sizes
+for iRep = 1:E.expt.nTrialPerCond         % Same as number of trials for R, both
+    trialOrder = [trialOrder, randperm(nCond)];
 end
 E.expt.trialOrder = trialOrder;    % Set this parameter here
 
@@ -48,9 +54,17 @@ presentationStrs2 = cellfun(...
     @(stimNum){sprintf('Stim %i start',stimNum)}, num2cell(1:E.trial.nStimPerTrial));
 presentationStrs3 = cellfun(...
     @(stimNum){sprintf('Stim %i end',stimNum)}, num2cell(1:E.trial.nStimPerTrial));
-dataColumns = [{'iTrial', 'plexonGoTime', 'Success', 'eyeCond', 'trialLocalGoTime'} presentationStrs1 presentationStrs2 presentationStrs3 ];  % Catenate to prepend more items to the list 
-sessionName = input('Session name (Subjectcode+experimentInitial): ', 's');
-datafile = DataFile(DataFile.defaultPath(sessionName), dataColumns);
+dataColumns = [{'iTrial', 'plexonGoTime', 'Success', 'trialType', 'eyeCond', 'Check Size (arcmin)', 'trialLocalGoTime'} presentationStrs1 presentationStrs2 presentationStrs3 ];  % Catenate to prepend more items to the list 
+subjectCode = input('Subject Code: ', 's');
+runNumber   = input('Enter run number (a,b,...) and hit Enter to start the experiment: ', 's');
+curDate = datestr(now, 29);   % 'yyyy-mm-dd' format. Used here for data file name.
+curDate(5) = '_';  % Change first dash to underscore
+curDate(8) = [];   % Remove second dash
+% curDate(curDate=='-') = '_';  % Replace dash with underscore in date string
+
+sessionName = [subjectCode 'vCHK' '_' curDate '_' runNumber];
+datafile = DataFile(DataFile.defaultPath(sessionName), dataColumns);  % Open the data file
+fprintf('VEP Checker Stim Expt for session %s is now starting.\n', sessionName);
 
 %% Prepare the display
 PsychImaging('PrepareConfiguration');
@@ -60,7 +74,6 @@ PsychImaging('AddTask', 'General', 'UseFastOffscreenWindows');
 PsychImaging('AddTask', 'General', 'FloatingPoint32Bit');
 
 %Screen('Preference', 'SkipSyncTests', 1); % for debug only!
-H = struct();
 res = Screen('Resolution', A.screenNumber);
 if ~all([res.width res.height] == E.screenResXY)
     fprintf(['Current screen resolution is not the expected %ix%i! '...
@@ -87,7 +100,6 @@ KbName('UnifyKeyNames');
 H.escapeKey = KbName('ESCAPE');
 
 % Initialize Plexon & parallel port data connection
-H.usePlexonFlag = true;
 if H.usePlexonFlag
     H.PLserver = PL_InitClient(0);
 
@@ -117,8 +129,9 @@ try
     Screen('DrawTexture', H.screenWindow, hTextureWarning);
     DrawFixationMark(A, E, H, 255.0);
     Screen(H.screenWindow, 'Flip');
-    fprintf('Press any key when subject is ready...');
-    pause();
+%     fprintf('Press any key when subject is ready...');
+%     pause();
+%     fprintf('\n');
     
     nTrial = length(trialOrder);
     result = cell(1, nTrial);
@@ -127,32 +140,31 @@ try
         needToPresent = true; % whether to present (again)
         result{iTrial} = {};
         while needToPresent
-            fprintf('Trial %i...', iTrial);
+            fprintf('Trial %i (stim condition = %i)...', iTrial, E.expt.trialOrder(iTrial));
             
             % Waiting period to allow subject to blink
             startTime = GetSecs();
             endTime = startTime + E.trial.ITIsec;
-            warningTriggered = false;
+            warningTriggeredFlag = false;
             % Draw regular fixation screen at start of intertrial interval
             Screen('DrawTexture', H.screenWindow, hTextureWarning);
             DrawFixationMark(A, E, H, 255.0);
             Screen(H.screenWindow, 'Flip');
             while GetSecs() < endTime
-                % If close to end time, show warning
-                if (GetSecs() > (endTime - E.trial.warnNoBlinkSec)) && ~warningTriggered
+                % If close to end time, show warning to blink once and then keep eyes open
+                if (GetSecs() > (endTime - E.trial.warnNoBlinkSec)) && ~warningTriggeredFlag
                     if H.usePlexonFlag
                         LPTTrigger(LPT_Stimulus_Trigger);
                     end
                     Screen('DrawTexture', H.screenWindow, hTextureWarning);
                     DrawFixationMark(A, E, H, E.warnSignalColor);
                     Screen(H.screenWindow, 'Flip');
-                    warningTriggered = true;
+                    warningTriggeredFlag = true;
                 end
-%                 play(warnTonePlayer);
-%                 WaitSecs(min(warnPeriod, 0.99*(endTime - GetSecs())));
                 WaitSecs(min(0.1, 0.99*(endTime - GetSecs())));
             end
             
+            % Wait for GO from Plexon, indicating that eyes are open and tracked
             if H.usePlexonFlag
                 go_ts = []; GetEventsPlexon(H.PLserver);
                 fprintf('Waiting for go...');
@@ -169,17 +181,19 @@ try
                 end
                 localGoTime = GetSecs();
                 fprintf('Going now!');
+            else
+                localGoTime = GetSecs();
             end
             fprintf('\n');
 
-            % After ensuring subject's eyes are open, show fixation screen
-            % briefly just prior to first stimulus of trial.
+            % Show the stimulus. After ensuring that the subject's eyes are open, show fixation screen
+            % briefly just prior to first stimulus of the trial.
             Screen('DrawTexture', H.screenWindow, hTextureWarning);
             DrawFixationMark(A, E, H, 255.0);
             Screen(H.screenWindow, 'Flip');
             WaitSecs(E.trial.blankStartSec);
 
-            latestResult = DoBinoCheckerTrial(A, E, H, E.expt.trialOrder(iTrial));  % Do a trial of type 1, 2, or 3 (LE, RE, both) depending on trial type
+            latestResult = DoBinoCheckerTrial(A, E, H, E.expt.trialOrder(iTrial));  % Do a trial of eyeCond = 1, 2, or 3 (LE, RE, both) depending on trial type
             result{iTrial} = { result{iTrial}{:} latestResult };  % List of any blink trials (-1 values) followed by vector of stimulus times upon success 
 
             if H.usePlexonFlag
@@ -198,17 +212,24 @@ try
             % Write to data file
             if needToPresent
                 stimTimes = zeros(1, E.trial.nStimPerTrial);
-                startTimes = zeros(1, E.trial.nStimPerTrial);
-                endTimes = zeros(1, E.trial.nStimPerTrial);
+                stimStartTimes = zeros(1, E.trial.nStimPerTrial);
+                stimEndTimes = zeros(1, E.trial.nStimPerTrial);
             else
                 stimTimes  = [latestResult.totalTime];   % This creates a vector from latestResult{:}.totalTime
-                startTimes = [latestResult.startTime];
-                endTimes   = [latestResult.endTime];
+                stimStartTimes = [latestResult.stimStartTime];
+                stimEndTimes   = [latestResult.stimEndTime];
             end
             if ~H.usePlexonFlag
                 go_ts = -1;
             end
-            datafile.append([iTrial, go_ts, ~needToPresent, E.expt.trialOrder(iTrial), localGoTime, stimTimes, startTimes, endTimes]);
+            
+            % Append data from this trial to the data file
+            trialType = E.expt.trialOrder(iTrial);
+            whichEye = 1+mod(trialType-1,3);          % 1, 2 or 3
+            indxCheckSize = ceil(trialType/3 - eps);  % 1, 2, ..., length(E.stim.checkSizeDeg)
+            checkSizeArcmin = 60 * E.stim.checkSizeDeg(indxCheckSize);
+            datafile.append([iTrial, go_ts, ~needToPresent, trialType, whichEye, checkSizeArcmin, ...
+                localGoTime, stimTimes, stimStartTimes, stimEndTimes]);
 
             % Abort if holding down Esc key
             [~, ~, keyCode] = KbCheck;
@@ -217,7 +238,7 @@ try
             end
         end
         [~, ~, keyCode] = KbCheck;
-        if keyCode(H.escapeKey) || (exist('latestResult', 'var') && isscalar(latestResult))
+        if keyCode(H.escapeKey) || (exist('latestResult', 'var') && latestResult(1).stimStartTime == -1)  % -1 is error code
             break;
         end
     end
@@ -227,6 +248,7 @@ end
 %% Close display and exit gracefully
 Screen('CloseAll');
 % Close data file
+fprintf('Closing datafile %s for session %s.\n', fopen(datafile.fileHandle), sessionName);
 delete(datafile);
 
 if exist('caughtException', 'var')
