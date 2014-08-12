@@ -1,4 +1,4 @@
-function report = ShowStimulus(A, E, H, oneStim)
+function report = ShowStimulus(A, E, H, oneStim, onFlipFunction)
 % function report = ShowStimulus(A, E, oneStim)
 %
 % Show a stimulus in the VEP experiment.
@@ -16,6 +16,7 @@ function report = ShowStimulus(A, E, H, oneStim)
 %     .colorCodes               256 x 1, entries are gray levels (0=black to 255=white) for the different color numbers (1 to 255);
 %                                  or 256 x 3, where each entry is the RGB for a different color number (0 to 255).                    
 %     .imageListTimes           nImage x 2: First column is time in sec at which to show image, 2nd is image number
+%   onFlipFunction         Function that runs just after Screen('Flip'...) returns (optional)
 % 
 % Output:
 %   
@@ -31,6 +32,10 @@ function report = ShowStimulus(A, E, H, oneStim)
 % whole images is conceptually easier I think.
 %
 % BB 2014-05-17, 2014-07-17
+
+if nargin < 5 || isempty(onFlipFunction)
+    onFlipFunction = @()[];
+end
 
 % Load all images into the graphics card. 
 % NOTE: currently we assume images are grayscale images (or convert them) 
@@ -50,6 +55,7 @@ tic
 for listEntry = 1:size(oneStim.imageListTimes, 1)        % Show the images in the stimulus
     startTime = oneStim.imageListTimes(listEntry,1);
     texNumber = oneStim.imageListTimes(listEntry,2);
+    shouldTrigger = oneStim.imageListTimes(listEntry,3); % sets flag to true iff the presentation of this image should be synchronized to a trigger event in Plexon file
     
     % Wait until the next image's start time
     t = toc;
@@ -63,6 +69,9 @@ for listEntry = 1:size(oneStim.imageListTimes, 1)        % Show the images in th
         DrawFixationMark(A, E, H, 255.0);
         %fprintf('Ready for texture %i (iImage #%i)\n', texNumber, listEntry);
         flipTimestamp = Screen(H.screenWindow, 'Flip');
+        if shouldTrigger
+            onFlipFunction(); % includes sending trigger iff usePlexonFlag was set
+        end
         if isempty(report.stimStartTime)
             report.stimStartTime = flipTimestamp;
         end

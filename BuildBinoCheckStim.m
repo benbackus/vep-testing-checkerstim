@@ -34,7 +34,7 @@ function oneStim = BuildBinoCheckStim(A, E, trialType)
 %     .images                   uint8 3D array of color numbers: nRow x nCol x nImage. 
 %     .colorCodes               256 x 1, entries are gray levels (0=black to 255=white) for the different color numbers (1 to 255);
 %                                  or 256 x 3, where each entry is the RGB for a different color number (0 to 255).                    
-%     .imageListTimes           nStim x 2 matrix of times (in sec) and image numbers. 
+%     .imageListTimes           nStim x 3 matrix of times (in sec), image numbers, and whether to send a 'trigger' event to Plexon (for alignment of VEP data analysis).
 %   
 % BB 2014-05-16
 
@@ -83,9 +83,10 @@ if nFlicker < 1
     error('Number of flickering stimuli is less than 1!');
 end
 nFlicker = round(nFlicker);
-timeImageMx = zeros(nFlicker+2, 2);
+timeImageMx = zeros(nFlicker+2, 3);
 timeImageMx(:,1) = [(0:nFlicker) * imageDurSec, E.stim.stimDurSec]';   % Times at which to show the images, plus when to terminate 
 timeImageMx(:,2) = [(mod(1:nFlicker,2)+1), 3, -1]';  % Which images to show: 2,1,...,2,1, then 3, then the last one is -1 = code to terminate
+timeImageMx(:,3) = [ ones(1, nFlicker), 0, 0]'; % 1 iff this image shows an actual checkerboard that should create a VEP
 oneStim.imageListTimes = timeImageMx;
 
 end

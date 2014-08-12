@@ -1,4 +1,4 @@
-function result = DoBinoCheckerTrial(A, E, H, trialType)
+function result = DoBinoCheckerTrial(A, E, H, trialType, onFlipFunction)
 %
 % Run one trial of the experiment. This is a generic function that assumes
 % a PsychToolbox display window is already open. It shows as many stimuli
@@ -10,18 +10,23 @@ function result = DoBinoCheckerTrial(A, E, H, trialType)
 %
 % Inputs:
 %    A, E, H, trialType
+%    optional: onFlipFunction
 %   
 % Outputs:
 %    result
 %
 % BB 2014-05-17
 
+if nargin < 5 || isempty(onFlipFunction)
+    onFlipFunction = @()[];
+end
+
 % Build the stimulus type (this should rather be done once at the start of experiment for all images)
 oneStim = BuildBinoCheckStim(A, E, trialType);
 
 % Show the stimulus the correct number of times for the trial
 for iStim = 1:E.trial.nStimPerTrial
-    result(iStim) = ShowStimulus(A, E, H, oneStim);
+    result(iStim) = ShowStimulus(A, E, H, oneStim, onFlipFunction);
     
     [~, ~, keyCode] = KbCheck;
     if keyCode(H.escapeKey)
