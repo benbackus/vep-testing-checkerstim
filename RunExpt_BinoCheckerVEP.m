@@ -218,6 +218,12 @@ try
             DrawFixationMark(A, E, H, 255.0);
             Screen(H.screenWindow, 'Flip');
             WaitSecs(E.trial.blankStartSec);
+            
+            if H.usePlexonFlag
+                onFlipFunction = @()LPTTrigger(LPT_Stimulus_Trigger);
+            else
+                onFlipFunction = @()[]; % do-nothing function
+            end
 
             latestResult = DoBinoCheckerTrial(A, E, H, E.expt.trialOrder(iTrial));  % Do a trial of eyeCond = 1, 2, or 3 (LE, RE, both) depending on trial type
             result{iTrial} = { result{iTrial}{:} latestResult };  % List of any blink trials (-1 values) followed by vector of stimulus times upon success 
