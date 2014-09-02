@@ -57,10 +57,7 @@ presentationStrs3 = cellfun(...
 dataColumns = [{'iTrial', 'plexonGoTime', 'Success', 'trialType', 'eyeCond', 'Check Size (arcmin)', 'trialLocalGoTime'} presentationStrs1 presentationStrs2 presentationStrs3 ];  % Catenate to prepend more items to the list 
 subjectCode = input('Subject Code: ', 's');
 runNumber   = input('Enter run number (a,b,...) and hit Enter to start the experiment: ', 's');
-curDate = datestr(now, 29);   % 'yyyy-mm-dd' format. Used here for data file name.
-curDate(5) = '_';  % Change first dash to underscore
-curDate(8) = [];   % Remove second dash
-% curDate(curDate=='-') = '_';  % Replace dash with underscore in date string
+curDate = datestr(now, 'yyyy_mmdd');
 
 sessionName = [subjectCode 'vCHK' '_' curDate '_' runNumber];
 datafile = DataFile(DataFile.defaultPath(sessionName), dataColumns);  % Open the data file
@@ -199,7 +196,7 @@ try
                 onFlipFunction = @()[]; % do-nothing function
             end
 
-            latestResult = DoBinoCheckerTrial(A, E, H, E.expt.trialOrder(iTrial));  % Do a trial of eyeCond = 1, 2, or 3 (LE, RE, both) depending on trial type
+            latestResult = DoBinoCheckerTrial(A, E, H, E.expt.trialOrder(iTrial), onFlipFunction);  % Do a trial of eyeCond = 1, 2, or 3 (LE, RE, both) depending on trial type
             result{iTrial} = { result{iTrial}{:} latestResult };  % List of any blink trials (-1 values) followed by vector of stimulus times upon success 
 
             if H.usePlexonFlag
@@ -246,6 +243,40 @@ try
         [~, ~, keyCode] = KbCheck;
         if keyCode(H.escapeKey) || (exist('latestResult', 'var') && latestResult(1).stimStartTime == -1)  % -1 is error code
             break;
+        end
+    end
+    
+    % Grab the data for a quick analysis
+    cancelAnalysis = false;
+    while ~cancelAnalysis
+        goodPLXPath = false;
+        while ~goodPLXPath && ~cancelAnalysis
+            plxFileName = input('Which plx filename to analyze? Just press Enter to skip: ', 's');
+
+            if isempty(plxFileNmae)
+                cancelAnalysis = true;
+            else
+                % Ensure that file name has the '.plx'
+                if length(plxFileName) < 4 || ~strcmpi(plxFileName(1,end-3:end), '.plx')
+                    plxFileName = [plxFileName '.plx'];
+                end
+
+                % Make sure the file actually exists
+                plxFilePath = plxFileName;
+                if exist(plxFilePath, 'file')
+                    goodPLXPath = true;
+                else
+                    plxFilePath = ['\\plexon-1705\VEPData\BackusData' filesep plxFileName];
+                    if exist(plxFilePath, 'file')
+                        goodPLXPath = true;
+                    else
+                        fprintf('No such file ''%s'' found - trying again...\n', plxFilePath);
+                    end
+                end
+            end
+        end
+        if ~cancelAnalysis
+            QuickAnalyze(datafile.data, plxFilePath);
         end
     end
 catch caughtException
