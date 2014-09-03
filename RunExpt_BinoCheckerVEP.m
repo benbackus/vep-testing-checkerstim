@@ -99,6 +99,8 @@ H.escapeKey = KbName('ESCAPE');
 % Initialize Plexon & parallel port data connection
 if H.usePlexonFlag
     H.PLserver = PL_InitClient(0);
+    PLEXON_FILE_START_EVENT_STROBE = 258;
+    PLEXON_FILE_END_EVENT_STROBE = 259;
 
     LPTSetup();
     LPT_Stimulus_Trigger = 4;
@@ -126,9 +128,33 @@ try
     Screen('DrawTexture', H.screenWindow, hTextureWarning);
     DrawFixationMark(A, E, H, 255.0);
     Screen(H.screenWindow, 'Flip');
-%     fprintf('Press any key when subject is ready...');
-%     pause();
-%     fprintf('\n');
+    
+    % Extract file-start timestamp offset (GetEventsPlexon will record a
+    % positive number, while the actual plx file will record approximately
+    % zero)
+    fileStartTs = [];
+    while isempty(fileStartTs)
+        [~, eventTs] = PL_GetTS(H.PLserver);
+        if ~isempty(eventTs)
+            fileStartEventIdx = find(eventTs(:,2) == PLEXON_FILE_START_EVENT_STROBE, 1, 'last');
+            fileEndEventIdx = find(eventTs(:,2) == PLEXON_FILE_END_EVENT_STROBE, 1, 'last');
+            
+            if fileStartEventIdx < fileEndEventIdx
+                fileEndEventIdx = []; % Last file opened is already closed!
+            end
+        else
+            fileStartEventIdx = [];
+        end
+        
+        if isempty(fileStartEventIdx)
+            fprintf('No or old plexon file open? (Re)start plexon data collection, then press any key...');
+            pause();
+            fprintf('\n');
+        else
+            fileStartTs = eventTs(fileStartEventIdx, 4);
+        end
+    end
+    fprintf('File start timestamp (approximate offset?): %f\n', fileStartTs);
     
     nTrial = length(trialOrder);
     result = cell(1, nTrial);
