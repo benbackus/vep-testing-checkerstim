@@ -279,7 +279,7 @@ try
         while ~goodPLXPath && ~cancelAnalysis
             plxFileName = input('Which plx filename to analyze? Just press Enter to skip: ', 's');
 
-            if isempty(plxFileNmae)
+            if isempty(plxFileName)
                 cancelAnalysis = true;
             else
                 % Ensure that file name has the '.plx'
